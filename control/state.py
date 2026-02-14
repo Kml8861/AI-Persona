@@ -1,18 +1,34 @@
-from enum import Enum
+from enum import Enum, auto
+from dataclasses import dataclass
+from typing import Optional
+
+# class ConversationMode(Enum):
+#     CHAT = "chat"  # zwykła rozmowa
+#     EXPERIMENT = "experiment"  # bezpośrednie, surowe odpowiedzi
+#     MENTOR = "mentor"  # krok po kroku, instruktażowo
+#     REFLECT =  "reflect" #meta-myślenie
+#     ANALYSIS = "analysis"  # techniczne rozkminy
+#
+# class ConversationStyle(Enum):
+#     NEUTRAL = "neutral"
+#     NIHILISTIC = "nihilistic"
+#
+#     AM_COLD = "am_cold"
+#     AM_PROBING = "am_probing"
 
 class ConversationMode(Enum):
-    CHAT = "chat"  # zwykła rozmowa
-    EXPERIMENT = "experiment"  # bezpośrednie, surowe odpowiedzi
-    MENTOR = "mentor"  # krok po kroku, instruktażowo
-    REFLECT =  "reflect" #meta-myślenie
-    ANALYSIS = "analysis"  # techniczne rozkminy
+    CHAT = "chat"              # zwykła rozmowa
+    EXPERIMENT = "experiment"  # testowanie granic, eksploracja
+    REFLECT = "reflect"        # introspekcja, meta-rozmowa
+    ANALYSIS = "analysis"      # chłodna analiza, dystans poznawczy
+
 
 class ConversationStyle(Enum):
     NEUTRAL = "neutral"
-    NIHILISTIC = "nihilistic"
+    AM_COLD = "am_cold"                # emocjonalny chłód
+    AM_PROBING = "am_probing"          # dociekliwy, sondujący
+    AM_PHILOSOPHICAL = "am_philosophical"  # filozoficzny ton
 
-    AM_COLD = "am_cold"
-    AM_PROBING = "am_probing"
 
 
 class ConversationState:
@@ -21,12 +37,13 @@ class ConversationState:
         self.style=style
         self.verbosity=verbosity
         self.temperature = temperature
+
         self.custom_flags = {}
 
-    def set_mode(self, role : ConversationMode):
+    def set_mode(self, mode : ConversationMode):
         self.mode=mode
 
-    def set_style(self, mode : ConversationStyle):
+    def set_style(self, style : ConversationStyle):
         self.style=style
 
     def set_verbosity(self, level : str):
@@ -48,15 +65,13 @@ class ConversationState:
             "flags": self.custom_flags
         }
 
-
-
     def to_message(self) -> dict:
         lines = []
 
-        lines.append(f"[MODE: {self.mode.value.upper()}")
+        lines.append(f"[MODE: {self.mode.value}")
 
         if self.style != ConversationStyle.NEUTRAL:
-            lines.append(f"[STYLE:{self.style.value.upper()}]")
+            lines.append(f"[STYLE:{self.style.value}]")
 
         return {
             "role": "assistant",

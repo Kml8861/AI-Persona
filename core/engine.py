@@ -4,6 +4,9 @@ import threading
 from core.context import ConversationContext
 from control.state import ConversationState, ConversationMode, ConversationStyle
 from control.behavior import BehaviorManager
+from memory.memory_manager import MemoryManager
+from control.prompt_builder import build_behavior_prompt
+
 
 class CogitoErgoSum:
     def __init__(self, config: dict):
@@ -11,8 +14,8 @@ class CogitoErgoSum:
         self.api_url = config.get("api_url", "http://localhost:11434/api/chat")
         self.stream = config.get("stream", False)
         self.state= ConversationState(
-            mode=ConversationMode(config.get("mode", "chat")),
-            style=ConversationStyle(config.get("style", "neutral")),
+            mode=ConversationMode.CHAT,
+            style=ConversationStyle.NEUTRAL,
             verbosity=config.get("verbosity", "medium"),
             temperature=config.get("temperature", 1.2)
         )
@@ -24,6 +27,10 @@ class CogitoErgoSum:
             mode=config.get("token_mode", "accurate")  # fast/accurate
         )
 
+        # self.working_memory = WorkingMemory()
+        # self.short_term_memory = ShortTermMemory()
+        self.memory=MemoryManager()
+
         # prewarm w osobnym wątku
         threading.Thread(
             target=self._prewarm,
@@ -34,11 +41,29 @@ class CogitoErgoSum:
         # dodajemy wiadomość użytkownika
         self.context.add("user", user_input)
 
-        decision=self.behavior.decide(user_input)
+        self.memory.update(user_input)
 
-        if decision.mode or decision.style:
-            system_message = self.behavior.build_mode_update(decision)
-            self.context.add("system", system_message["content"])
+        wm, stm, ltm_events, affect = self.memory.get_behavior_inputs()
+        decision = self.behavior.decide(wm, stm, ltm_events, affect)
+
+        system_prompt = build_behavior_prompt(decision)
+        if system_prompt:
+            self.context.add("system", system_prompt["content"])
+
+        # 5. Aktualizacja ConversationState
+        if decision.mode:
+            self.state.set_mode(decision.mode)
+
+        if decision.style:
+            self.state.set_style(decision.style)
+
+        if decision.verbosity:
+            self.state.set_verbosity(decision.verbosity)
+
+        if decision.temperature_shift is not None:
+            self.state.set_temperature(
+                self.state.temperature + decision.temperature_shift
+            )
 
         # wywołanie LLM
         reply = self._call_llm()
